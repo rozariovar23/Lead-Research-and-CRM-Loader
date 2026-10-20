@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lead Research & CRM Loader | Agentic Pipeline & Verification</title>
+  <meta name="description" content="Autonomous agent for company research, qualification, deduplication, private CRM sandbox loading, and post-action verification.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <!-- Background Glow Accents -->
+  <div class="glow glow-1"></div>
+  <div class="glow glow-2"></div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-content">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">Lead Research & CRM Loader</h1>
+          <p class="brand-subtitle">Autonomous Verification, Deduplication & Private CRM Sandbox Loader</p>
+        </div>
+      </div>
+
+      <div class="system-status">
+        <div class="status-pill status-crm">
+          <span class="status-dot green"></span>
+          <span class="pill-label">HubSpot Free CRM Sandbox:</span>
+          <span class="pill-val">Connected</span>
+        </div>
+        <div class="status-pill status-view">
+          <span class="status-dot purple"></span>
+          <span class="pill-label">Private View:</span>
+          <span class="pill-val">HS-PRIV-VIEW-409</span>
+        </div>
+        <div class="status-pill status-idemp">
+          <span class="status-dot cyan"></span>
+          <span class="pill-label">Idempotency Guard:</span>
+          <span class="pill-val">Active (SHA-256)</span>
+        </div>
+        <button id="resetCrmBtn" class="btn-secondary btn-sm" title="Reset CRM Sandbox to initial seed">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="1 4 1 10 7 10"></polyline>
+            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+          </svg>
+          Reset CRM
+        </button>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="main-tabs" role="tablist">
+      <button class="tab-btn active" data-tab="tab-pipeline" role="tab" id="navPipeline">
+        <span class="tab-number">01</span>
+        <span>Interactive Pipeline</span>
+      </button>
+      <button class="tab-btn" data-tab="tab-scenarios" role="tab" id="navScenarios">
+        <span class="tab-number">02</span>
+        <span>Step 7 Official Runs</span>
+      </button>
+      <button class="tab-btn" data-tab="tab-results" role="tab" id="navResults">
+        <span class="tab-number">03</span>
+        <span>Step 6 Result View</span>
+      </button>
+      <button class="tab-btn" data-tab="tab-crm" role="tab" id="navCrm">
+        <span class="tab-number">04</span>
+        <span>HubSpot CRM Sandbox</span>
+      </button>
+    </nav>
+  </header>
+
+  <main class="main-container">
+    <!-- TAB 1: INTERACTIVE PIPELINE (STEPS 1 TO 5) -->
+    <section id="tab-pipeline" class="tab-content active" role="tabpanel">
+      <!-- Quick Scenario Loader Bar -->
+      <div class="quick-loader-bar glass-card">
+        <div class="quick-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+          <span>Load Official Test Case:</span>
+        </div>
+        <div class="quick-buttons">
+          <button class="btn-scenario" data-scenario="RUN-01" id="loadRun01">
+            <span class="badge-tag">RUN-01</span> CloudScale <span class="tag-expected success">Qualified</span>
+          </button>
+          <button class="btn-scenario" data-scenario="RUN-02" id="loadRun02">
+            <span class="badge-tag">RUN-02</span> Acme <span class="tag-expected danger">Duplicate</span>
+          </button>
+          <button class="btn-scenario" data-scenario="RUN-03" id="loadRun03">
+            <span class="badge-tag">RUN-03</span> QuantumTech <span class="tag-expected warning">Uncertain</span>
+          </button>
+          <button class="btn-scenario" data-scenario="RUN-04" id="loadRun04">
+            <span class="badge-tag">RUN-04</span> GhostCorp <span class="tag-expected failure">Verif. Failed</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="pipeline-grid">
+        <!-- Left Column: Input Form (Step 1) & Stepper -->
+        <div class="pipeline-left">
+          <div class="glass-card form-card">
+            <div class="card-header">
+              <div class="step-indicator">
+                <span class="step-badge">STEP 1</span>
+                <h2>Lead Input & Qualification Criteria</h2>
+              </div>
+              <span class="card-hint">Validates fields before running agent</span>
+            </div>
+
+            <form id="leadInputForm" class="lead-form">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="requestId">Stable Request ID <span class="required">*</span></label>
+                  <input type="text" id="requestId" name="request_id" value="RUN-01" required placeholder="e.g. RUN-01">
+                </div>
+                <div class="form-group">
+                  <label for="domain">Company Domain <span class="required">*</span></label>
+                  <input type="text" id="domain" name="domain" value="cloudscale.io" required placeholder="e.g. company.com">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="legalName">Legal Entity Name <span class="required">*</span></label>
+                <input type="text" id="legalName" name="legal_name" value="CloudScale Technologies Inc." required placeholder="Full registered legal name">
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="region">Target Region <span class="required">*</span></label>
+                  <input type="text" id="region" name="region" value="North America" required placeholder="e.g. North America, Canada, US">
+                </div>
+                <div class="form-group">
+                  <label for="industry">Industry <span class="required">*</span></label>
+                  <input type="text" id="industry" name="industry" value="Cloud Infrastructure" required placeholder="e.g. Enterprise Software">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="employeeCount">Employee Count (Evidence)</label>
+                  <input type="number" id="employeeCount" name="employee_count" value="180" placeholder="Null if missing in public source">
+                  <span class="field-help">Leave empty to simulate missing directory evidence (Uncertain status)</span>
+                </div>
+                <div class="form-group">
+                  <label for="fundingStage">Funding Stage</label>
+                  <input type="text" id="fundingStage" name="funding_stage" value="Series B" placeholder="e.g. Seed, Series A, Bootstrapped">
+                </div>
+              </div>
+
+              <div class="form-checkbox-row">
+                <label class="custom-checkbox">
+                  <input type="checkbox" id="websiteActive" name="website_active" checked>
+                  <span class="checkmark"></span>
+                  <span class="checkbox-label">
+                    <strong>Website Active & Resolving (HTTP 200)</strong>
+                    <span class="subtext">Uncheck to simulate inactive website / HTTP 404 for verification testing</span>
+                  </span>
+                </label>
+              </div>
+
+              <div class="form-actions">
+                <button type="button" id="btnValidateStep1" class="btn-secondary">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  Validate Inputs
+                </button>
+                <button type="submit" id="btnRunPipeline" class="btn-primary">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  Run Full Pipeline (Steps 1-5)
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Active Qualification Rules Inspector -->
+          <div class="glass-card criteria-card">
+            <div class="card-header">
+              <h3>Active Qualification Rules</h3>
+              <span class="badge badge-info">Rule Engine v1.0</span>
+            </div>
+            <div class="criteria-list">
+              <div class="criteria-item">
+                <span class="crit-label">Permitted Employee Range:</span>
+                <span class="crit-val">50 to 500 Employees</span>
+              </div>
+              <div class="criteria-item">
+                <span class="crit-label">Permitted Regions:</span>
+                <span class="crit-val">North America, US, CA, Canada, USA</span>
+              </div>
+              <div class="criteria-item">
+                <span class="crit-label">Deduplication Keys:</span>
+                <span class="crit-val">Domain & Normalized Legal Name</span>
+              </div>
+              <div class="criteria-item">
+                <span class="crit-label">Required Evidence:</span>
+                <span class="crit-val">Employee Count (Missing -> UNCERTAIN)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Pipeline Execution Stepper & Results -->
+        <div class="pipeline-right">
+          <!-- Stepper Progress Header -->
+          <div class="stepper-bar glass-card">
+            <div class="step-node active" id="stepNode1">
+              <div class="node-circle">1</div>
+              <span class="node-label">Inputs Validated</span>
+            </div>
+            <div class="step-line" id="stepLine1"></div>
+            <div class="step-node" id="stepNode2">
+              <div class="node-circle">2</div>
+              <span class="node-label">Named Sources</span>
+            </div>
+            <div class="step-line" id="stepLine2"></div>
+            <div class="step-node" id="stepNode3">
+              <div class="node-circle">3</div>
+              <span class="node-label">Decision Rules</span>
+            </div>
+            <div class="step-line" id="stepLine3"></div>
+            <div class="step-node" id="stepNode4">
+              <div class="node-circle">4</div>
+              <span class="node-label">Approval & Action</span>
+            </div>
+            <div class="step-line" id="stepLine4"></div>
+            <div class="step-node" id="stepNode5">
+              <div class="node-circle">5</div>
+              <span class="node-label">Verification</span>
+            </div>
+          </div>
+
+          <!-- Step 2: Named Sources & Provenance Card -->
+          <div class="glass-card step-panel" id="panelStep2">
+            <div class="card-header">
+              <div class="step-indicator">
+                <span class="step-badge">STEP 2</span>
+                <h3>Connected Named Sources & Provenance Evidence</h3>
+              </div>
+              <span class="badge badge-neutral" id="provenanceTimestamp">Retrieved Realtime</span>
+            </div>
+            <p class="panel-desc">Evidence extracted from company websites and business directories. Source IDs, URLs, and retrieval timestamps stored alongside values.</p>
+            
+            <div class="table-container">
+              <table class="data-table" id="provenanceTable">
+                <thead>
+                  <tr>
+                    <th>Field</th>
+                    <th>Source ID</th>
+                    <th>Source URL</th>
+                    <th>Extracted At (UTC)</th>
+                    <th>Raw Value</th>
+                  </tr>
+                </thead>
+                <tbody id="provenanceTableBody">
+                  <tr>
+                    <td colspan="5" class="empty-cell">Run pipeline to inspect connected sources.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Step 3: Decision Rules & Classification Output Card -->
+          <div class="glass-card step-panel" id="panelStep3">
+            <div class="card-header">
+              <div class="step-indicator">
+                <span class="step-badge">STEP 3</span>
+                <h3>Decision Rules, Classification & Deduplication</h3>
+              </div>
+              <div id="decisionStatusBadge" class="badge badge-pending">Awaiting Execution</div>
+            </div>
+            
+            <div class="decision-content">
+              <div class="decision-reason-box" id="decisionReasonBox">
+                <div class="reason-title">Evaluation Reason:</div>
+                <div class="reason-text" id="decisionReasonText">Select a scenario or submit a lead to evaluate decision rules.</div>
+              </div>
+              <div class="decision-meta">
+                <div class="meta-item">
+                  <span class="meta-label">Idempotency Key (SHA-256):</span>
+                  <code class="meta-code" id="decisionIdempKey">-</code>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">CRM Match Status:</span>
+                  <span class="meta-val" id="decisionDeduplicationStatus">Clean (No Collision)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 4: Permitted Action & Human Approval Modal / Card -->
+          <div class="glass-card step-panel" id="panelStep4">
+            <div class="card-header">
+              <div class="step-indicator">
+                <span class="step-badge">STEP 4</span>
+                <h3>Permitted Action: Approval Gate & CRM Sandbox Destination</h3>
+              </div>
+              <div id="actionStatusBadge" class="badge badge-neutral">Standby</div>
+            </div>
+            <p class="panel-desc">Proposed destination and payload diff shown for operator approval before writing into the private CRM view.</p>
+
+            <div class="action-proposal-box" id="actionProposalBox">
+              <div class="destination-banner">
+                <div class="dest-item">
+                  <span class="dest-label">Proposed Destination:</span>
+                  <span class="dest-val highlight-purple" id="proposedDest">HubSpot CRM Sandbox (Free Tier)</span>
+                </div>
+                <div class="dest-item">
+                  <span class="dest-label">Target Private View:</span>
+                  <span class="dest-val highlight-cyan" id="proposedView">Private Research Leads (HS-PRIV-VIEW-409)</span>
+                </div>
+                <div class="dest-item">
+                  <span class="dest-label">Action Type:</span>
+                  <span class="dest-val" id="proposedActionType">CREATE_LEAD_RECORD</span>
+                </div>
+              </div>
+
+              <div class="payload-diff-container">
+                <div class="payload-header">
+                  <span>Proposed Record Payload (Staging Diff):</span>
+                  <span class="idemp-badge" id="idempLockBadge">Idempotency Lock Ready</span>
+                </div>
+                <pre class="json-code" id="proposedPayloadJson">{ "status": "Waiting for qualified lead..." }</pre>
+              </div>
+
+              <div class="approval-actions" id="approvalActions">
+                <div class="approval-prompt">
+                  <strong>Operator Approval Required:</strong> Authorize creation of lead in private CRM view?
+                </div>
+                <div class="approval-btns">
+                  <button type="button" class="btn-danger btn-sm" id="btnRejectAction">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                    Deny Approval
+                  </button>
+                  <button type="button" class="btn-success" id="btnApproveAction">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    Approve & Load into CRM Sandbox
+                  </button>
+                </div>
+              </div>
+
+              <div class="execution-result-card" id="executionResultCard" style="display:none;">
+                <div class="result-lead-id">
+                  <span>CRM Record Assigned:</span>
+                  <strong class="highlight-green" id="assignedCrmId">CRMID-101</strong>
+                </div>
+                <div class="result-note" id="assignedCrmNote">Successfully committed to private view.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 5: Post-Action Verification Card -->
+          <div class="glass-card step-panel" id="panelStep5">
+            <div class="card-header">
+              <div class="step-indicator">
+                <span class="step-badge">STEP 5</span>
+                <h3>Post-Action Verification (Independent Check)</h3>
+              </div>
+              <div id="verificationStatusBadge" class="badge badge-neutral">Pending Verification</div>
+            </div>
+            <p class="panel-desc">Implemented separately from the insertion action: Re-opens the CRM record, resolves the website, and verifies the company is active.</p>
+
+            <div class="verification-details-grid" id="verificationDetailsGrid">
+              <div class="verif-col">
+                <div class="verif-card">
+                  <span class="verif-title">Intended State</span>
+                  <p class="verif-text" id="intendedStateText">Record created in private view and website active with HTTP 200.</p>
+                </div>
+              </div>
+              <div class="verif-col">
+                <div class="verif-card">
+                  <span class="verif-title">Observed State</span>
+                  <p class="verif-text" id="observedStateText">Awaiting post-action inspection.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="discrepancy-alert" id="discrepancyAlert" style="display:none;">
+              <div class="alert-icon">⚠️</div>
+              <div class="alert-body">
+                <strong>Verification Discrepancy Observed:</strong>
+                <span id="discrepancyText">Website returned HTTP 404 (Inactive/Host unreachable). Kept visible in failed state.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: STEP 7 OFFICIAL SCENARIOS -->
+    <section id="tab-scenarios" class="tab-content" role="tabpanel">
+      <div class="section-intro glass-card">
+        <div>
+          <h2>Step 7: Official Labelled Runs & Benchmark Test Suite</h2>
+          <p>Preserves specified input, expected result, actual result, and public evidence. Explains failures or differences with complete transparency.</p>
+        </div>
+        <button id="btnRunAllScenarios" class="btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          Run All 4 Official Scenarios + Retry Test
+        </button>
+      </div>
+
+      <div class="scenarios-grid" id="scenariosCardsContainer">
+        <!-- Will be dynamically populated with official run cards -->
+      </div>
+
+      <!-- Idempotency Retry Card -->
+      <div class="glass-card idempotency-proof-card" id="idempotencyProofCard" style="display:none;">
+        <div class="card-header">
+          <div class="step-indicator">
+            <span class="step-badge purple">IDEMPOTENCY VERIFICATION</span>
+            <h3>Duplicate Execution Prevention Proof (RUN-01 Retry)</h3>
+          </div>
+          <span class="badge badge-success">Idempotency Guard PASS</span>
+        </div>
+        <div class="idemp-proof-content">
+          <p>When RUN-01 was re-executed with the identical request ID and company domain, the agent intercepted the request using its SHA-256 idempotency key, preventing a duplicate CRM record from being created.</p>
+          <div class="proof-keys">
+            <div class="proof-item">
+              <span class="p-label">Intercepted CRM ID:</span>
+              <span class="p-val" id="proofCrmId">CRMID-101</span>
+            </div>
+            <div class="proof-item">
+              <span class="p-label">Duplicate Prevented:</span>
+              <span class="p-val highlight-green">TRUE (Zero duplicate record created)</span>
+            </div>
+            <div class="proof-item">
+              <span class="p-label">Audit Log Status:</span>
+              <span class="p-val highlight-cyan">DUPLICATE_EXECUTION_PREVENTED</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: STEP 6 RESULT VIEW -->
+    <section id="tab-results" class="tab-content" role="tabpanel">
+      <div class="section-intro glass-card">
+        <div>
+          <h2>Step 6: Problem Result View (Audit & Traceability)</h2>
+          <p>Categorized views: Qualified leads with source attribution, rejected leads with explicit reasons, and unresolved/uncertain items with evidence gaps.</p>
+        </div>
+        <div class="summary-counters" id="resultViewCounters">
+          <div class="counter-box">
+            <span class="count-num" id="cntTotal">0</span>
+            <span class="count-label">Total Processed</span>
+          </div>
+          <div class="counter-box success">
+            <span class="count-num" id="cntQualified">0</span>
+            <span class="count-label">Qualified Leads</span>
+          </div>
+          <div class="counter-box danger">
+            <span class="count-num" id="cntRejected">0</span>
+            <span class="count-label">Rejected Leads</span>
+          </div>
+          <div class="counter-box warning">
+            <span class="count-num" id="cntUnresolved">0</span>
+            <span class="count-label">Unresolved Items</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="results-categorized-container">
+        <!-- 1. Qualified Leads -->
+        <div class="glass-card result-category-card">
+          <div class="card-header">
+            <div class="cat-title">
+              <span class="status-indicator-dot green"></span>
+              <h3>1. Qualified & CRM Loaded Leads</h3>
+            </div>
+            <span class="badge badge-success" id="badgeQualifiedCount">0 Leads</span>
+          </div>
+          <p class="cat-desc">Companies that passed public evidence qualification and uniqueness checks. Fully traceable to named sources and private CRM view.</p>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Request ID</th>
+                  <th>Legal Entity & Domain</th>
+                  <th>CRM Record ID</th>
+                  <th>Target Private View</th>
+                  <th>Verification State</th>
+                  <th>Named Sources (Traceability)</th>
+                </tr>
+              </thead>
+              <tbody id="qualifiedLeadsTableBody">
+                <tr><td colspan="6" class="empty-cell">No qualified leads yet. Run scenarios above.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 2. Rejected Leads -->
+        <div class="glass-card result-category-card">
+          <div class="card-header">
+            <div class="cat-title">
+              <span class="status-indicator-dot red"></span>
+              <h3>2. Rejected Leads & Explicit Reasons</h3>
+            </div>
+            <span class="badge badge-danger" id="badgeRejectedCount">0 Leads</span>
+          </div>
+          <p class="cat-desc">Leads disqualified due to input schema failure, deduplication collision, or out-of-scope criteria.</p>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Request ID</th>
+                  <th>Company & Domain</th>
+                  <th>Region & Size</th>
+                  <th>Explicit Rejection Reason</th>
+                  <th>Deduplication / Scope Note</th>
+                </tr>
+              </thead>
+              <tbody id="rejectedLeadsTableBody">
+                <tr><td colspan="5" class="empty-cell">No rejected leads yet. Run scenarios above.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 3. Unresolved / Uncertain Items -->
+        <div class="glass-card result-category-card">
+          <div class="card-header">
+            <div class="cat-title">
+              <span class="status-indicator-dot amber"></span>
+              <h3>3. Unresolved / Uncertain Items (Missing Evidence)</h3>
+            </div>
+            <span class="badge badge-warning" id="badgeUnresolvedCount">0 Leads</span>
+          </div>
+          <p class="cat-desc">Leads where required evidence was missing from public directories. Kept visible with actionable missing item tags.</p>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Request ID</th>
+                  <th>Company & Domain</th>
+                  <th>Missing Evidence Item</th>
+                  <th>Uncertain Reason</th>
+                  <th>Resolution Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="unresolvedLeadsTableBody">
+                <tr><td colspan="5" class="empty-cell">No unresolved items. Run scenarios above.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: HUBSPOT CRM SANDBOX EXPLORER -->
+    <section id="tab-crm" class="tab-content" role="tabpanel">
+      <div class="section-intro glass-card">
+        <div>
+          <h2>HubSpot Free CRM Sandbox: Private View Database</h2>
+          <p>Direct view of the simulated private CRM database (View: <code>HS-PRIV-VIEW-409</code>), record payloads, and idempotent write audit trail.</p>
+        </div>
+        <button id="btnRefreshCrm" class="btn-secondary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+          Refresh CRM View
+        </button>
+      </div>
+
+      <div class="crm-explorer-grid">
+        <!-- Private View Records Table -->
+        <div class="glass-card">
+          <div class="card-header">
+            <h3>Active Leads in Private View</h3>
+            <span class="badge badge-neutral" id="crmRecordsCount">0 Total Records</span>
+          </div>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>CRM ID</th>
+                  <th>Company Name</th>
+                  <th>Domain</th>
+                  <th>Region</th>
+                  <th>Employees</th>
+                  <th>Lead Status</th>
+                  <th>Idempotency Key</th>
+                </tr>
+              </thead>
+              <tbody id="crmRecordsTableBody">
+                <tr><td colspan="7" class="empty-cell">Loading CRM database...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Execution Audit Trail -->
+        <div class="glass-card">
+          <div class="card-header">
+            <h3>Execution Audit & Idempotency Log</h3>
+            <span class="badge badge-info">Write Protection Active</span>
+          </div>
+          <div class="audit-log-container" id="crmAuditLogContainer">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p>Lead Research & CRM Loader Agent &bull; 7-Step Verified Architecture &bull; Deepmind Antigravity</p>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

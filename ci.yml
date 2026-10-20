@@ -1,0 +1,50 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and Test
+        run: |
+          docker build -t lead-agent .
+          docker run --rm lead-agent pytest -v test_lead_agent.py
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/123456789/locations/global/workloadIdentityPools/my-pool/providers/my-provider'
+          service_account: 'github-actions-deployer@my-gcp-project.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build, Push & Deploy to Cloud Run
+        run: |
+          gcloud auth configure-docker us-central1-docker.pkg.dev
+          IMAGE="us-central1-docker.pkg.dev/my-gcp-project/lead-agent-repo/lead-agent:${{ github.sha }}"
+          docker build -t $IMAGE .
+          docker push $IMAGE
+          gcloud run deploy lead-agent-service \
+            --image=$IMAGE \
+            --region=us-central1 \
+            --platform=managed \
+            --allow-unauthenticated

@@ -1,0 +1,15 @@
+[
+  "test_lead_agent.py::test_duplicate_domain_rejected",
+  "test_lead_agent.py::test_duplicate_legal_name_rejected",
+  "test_lead_agent.py::test_idempotency_duplicate_execution_prevention",
+  "test_lead_agent.py::test_qualification_rules_employee_count_out_of_range",
+  "test_lead_agent.py::test_qualification_rules_region_out_of_scope",
+  "test_lead_agent.py::test_qualified_lead_approved",
+  "test_lead_agent.py::test_qualified_pending_user_approval",
+  "test_lead_agent.py::test_run_01_qualified_and_verified_success",
+  "test_lead_agent.py::test_run_02_duplicate_domain_rejected",
+  "test_lead_agent.py::test_run_03_missing_evidence_uncertain",
+  "test_lead_agent.py::test_run_04_verification_failed_inactive_website",
+  "test_lead_agent.py::test_unapproved_lead",
+  "test_lead_agent.py::test_uncertain_lead_missing_evidence"
+]

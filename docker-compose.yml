@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  # FastAPI Application Service
+  lead-agent-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lead_agent_api
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/docs || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Pytest Test Runner Service
+  lead-agent-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lead_agent_tests
+    command: pytest -v test_lead_agent.py
+    depends_on:
+      - lead-agent-api
+    environment:
+      - ENVIRONMENT=testing

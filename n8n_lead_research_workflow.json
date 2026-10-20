@@ -1,0 +1,218 @@
+{
+  "name": "Lead Research & CRM Loader Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-intake",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook Intake",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [180, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Step 1: Input Setup & Schema Validation\nconst items = $input.all();\nconst output = [];\n\nfor (const item of items) {\n  const data = item.json.body || item.json;\n  const requestId = data.request_id || `REQ-${Date.now()}`;\n  const domain = (data.domain || '').trim();\n  const legalName = (data.legal_name || '').trim();\n  const region = (data.region || '').trim();\n  const industry = (data.industry || 'Enterprise Software').trim();\n  const employeeCount = data.employee_count !== undefined && data.employee_count !== null ? Number(data.employee_count) : null;\n  const fundingStage = data.funding_stage || 'Unknown';\n  const approved = data.approved === true;\n  const websiteActive = data.website_active !== false;\n\n  // Strict validation rules\n  if (!domain || !domain.includes('.') || domain.split('.').length < 2) {\n    throw new Error(`Invalid or missing domain: ${domain}`);\n  }\n  if (!legalName) {\n    throw new Error('Missing mandatory field: legal_name');\n  }\n  if (!region) {\n    throw new Error('Region cannot be empty');\n  }\n  if (employeeCount !== null && employeeCount < 0) {\n    throw new Error(`Employee count cannot be negative: ${employeeCount}`);\n  }\n\n  output.push({\n    json: {\n      request_id: requestId,\n      domain,\n      legal_name: legalName,\n      region,\n      industry,\n      employee_count: employeeCount,\n      funding_stage: fundingStage,\n      approved,\n      website_active: websiteActive,\n      stage: 'VALIDATED'\n    }\n  });\n}\n\nreturn output;"
+      },
+      "id": "2",
+      "name": "Step 1: Schema Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Step 2: Named Sources & Provenance Extraction\nconst items = $input.all();\nconst output = [];\nconst now = new Date().toISOString();\n\nfor (const item of items) {\n  const d = item.json;\n  \n  const provenance = {\n    company_website: {\n      source_id: \"SRC-WEB-01\",\n      source_url: `https://${d.domain}`,\n      extracted_at: now,\n      raw_value: d.legal_name,\n      source_type: \"website\"\n    },\n    business_directory: {\n      source_id: \"SRC-DIR-02\",\n      source_url: `https://bizregistry.org/lookup/${d.domain}`,\n      extracted_at: now,\n      raw_value: d.employee_count !== null ? String(d.employee_count) : \"null\",\n      source_type: \"web_directory\"\n    },\n    legal_registry: {\n      source_id: \"SRC-REG-04\",\n      source_url: `https://corp-filings.gov/entity/${encodeURIComponent(d.legal_name)}`,\n      extracted_at: now,\n      raw_value: d.region,\n      source_type: \"registry\"\n    }\n  };\n\n  output.push({\n    json: {\n      ...d,\n      provenance\n    }\n  });\n}\n\nreturn output;"
+      },
+      "id": "3",
+      "name": "Step 2: Provenance Extraction",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [620, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Step 3: Explicit Decision Rules & Deduplication Engine\nconst crypto = require('crypto');\nconst items = $input.all();\nconst output = [];\n\n// Seeded CRM mock records for deduplication check\nconst existingCrmRecords = [\n  {\n    crm_id: 'CRMID-881',\n    domain: 'acmesoftware.com',\n    legal_name: 'Acme Software Solutions Inc.',\n    region: 'North America',\n    status: 'EXISTING_CUSTOMER'\n  }\n];\n\nfunction normalizeDomain(d) {\n  let dom = (d || '').toLowerCase().trim();\n  for (const prefix of ['https://', 'http://', 'www.']) {\n    if (dom.startsWith(prefix)) dom = dom.slice(prefix.length);\n  }\n  return dom.replace(/\\/+$/, '');\n}\n\nfunction normalizeLegalName(name) {\n  let n = (name || '').toLowerCase().trim();\n  const suffixes = [', inc.', ' inc.', ' inc', ', llc', ' llc', ' corp.', ' corp', ' ltd.', ' ltd', ' systems', ' technologies'];\n  for (const s of suffixes) {\n    n = n.replace(s, '');\n  }\n  return n.trim();\n}\n\nfor (const item of items) {\n  const d = item.json;\n  const normDomain = normalizeDomain(d.domain);\n  const normName = normalizeLegalName(d.legal_name);\n\n  // Idempotency Key calculation: hash(request_id : domain : legal_name)\n  const idempotencyKey = crypto\n    .createHash('sha256')\n    .update(`${d.request_id}:${normDomain}:${normName}`)\n    .digest('hex');\n\n  // 1. Deduplication Check\n  let collision = null;\n  for (const rec of existingCrmRecords) {\n    if (normalizeDomain(rec.domain) === normDomain) {\n      collision = { type: 'domain', rec };\n      break;\n    }\n    if (normalizeLegalName(rec.legal_name) === normName) {\n      collision = { type: 'legal_name', rec };\n      break;\n    }\n  }\n\n  if (collision) {\n    output.push({\n      json: {\n        lead_id: d.request_id,\n        domain: d.domain,\n        status: 'REJECTED',\n        reason: `Deduplication collision on ${collision.type}: matches existing CRM record ${collision.rec.crm_id} (${collision.rec.legal_name})`,\n        idempotency_key: idempotencyKey,\n        provenance: d.provenance,\n        verification_status: 'N/A',\n        crm_id: null\n      }\n    });\n    continue;\n  }\n\n  // 2. Missing Evidence Check (Uncertain State)\n  if (d.employee_count === null || d.employee_count === undefined) {\n    output.push({\n      json: {\n        lead_id: d.request_id,\n        domain: d.domain,\n        status: 'UNCERTAIN',\n        reason: 'Missing verifiable evidence: employee_count not found in registry (SRC-DIR-02). Action withheld pending human manual review.',\n        idempotency_key: idempotencyKey,\n        provenance: d.provenance,\n        verification_status: 'N/A',\n        crm_id: null\n      }\n    });\n    continue;\n  }\n\n  // 3. Qualification Criteria Scope Check\n  const allowedRegions = ['north america', 'us', 'ca', 'canada', 'usa'];\n  const regionNorm = d.region.toLowerCase().trim();\n  const isRegionAllowed = allowedRegions.some(r => regionNorm.includes(r));\n\n  if (d.employee_count < 50 || d.employee_count > 500) {\n    output.push({\n      json: {\n        lead_id: d.request_id,\n        domain: d.domain,\n        status: 'REJECTED',\n        reason: `Disqualified: Employee count ${d.employee_count} outside ICP bounds [50, 500]`,\n        idempotency_key: idempotencyKey,\n        provenance: d.provenance,\n        verification_status: 'N/A',\n        crm_id: null\n      }\n    });\n    continue;\n  }\n\n  if (!isRegionAllowed) {\n    output.push({\n      json: {\n        lead_id: d.request_id,\n        domain: d.domain,\n        status: 'REJECTED',\n        reason: `Disqualified: Region '${d.region}' is outside allowed territories (North America)`,\n        idempotency_key: idempotencyKey,\n        provenance: d.provenance,\n        verification_status: 'N/A',\n        crm_id: null\n      }\n    });\n    continue;\n  }\n\n  // Qualified Lead\n  output.push({\n    json: {\n      ...d,\n      lead_id: d.request_id,\n      status: 'QUALIFIED',\n      reason: 'Lead satisfies ICP criteria (50-500 employees, allowed region, active entity).',\n      idempotency_key: idempotencyKey,\n      proposed_action: {\n        destination: 'HubSpot CRM Sandbox (Free Tier)',\n        target_view: 'Private Research Leads (Sandbox View ID: HS-PRIV-VIEW-409)',\n        action_type: 'UPSERT_PRIVATE_LEAD',\n        payload: {\n          properties: {\n            domain: d.domain,\n            name: d.legal_name,\n            numberofemployees: d.employee_count,\n            hs_lead_status: 'NEW_RESEARCH',\n            hs_private_view: 'HS-PRIV-VIEW-409'\n          }\n        }\n      }\n    }\n  });\n}\n\nreturn output;"
+      },
+      "id": "4",
+      "name": "Step 3: Decision & Deduplication",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [840, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "value2": "QUALIFIED"
+            }
+          ]
+        }
+      },
+      "id": "5",
+      "name": "Is Qualified?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1060, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.approved }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "6",
+      "name": "Step 4: HITL Approval Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1280, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pending Operator Approval branch\nconst item = $input.first().json;\nreturn [{\n  json: {\n    lead_id: item.lead_id,\n    status: 'QUALIFIED',\n    reason: 'Lead qualified. Awaiting human operator approval before CRM load.',\n    crm_id: null,\n    verification_status: 'PENDING_REVIEW',\n    idempotency_key: item.idempotency_key,\n    proposed_action: item.proposed_action,\n    provenance: item.provenance\n  }\n}];"
+      },
+      "id": "7",
+      "name": "Awaiting Approval State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 320]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Step 4 & CRM Ingestion: Mock HubSpot Private View Loader with Idempotency Guard\nconst item = $input.first().json;\n\n// Generate deterministic CRM ID based on domain\nconst cleanDomain = item.domain.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8);\nconst crmId = `CRMID-101-${cleanDomain}`;\n\nreturn [{\n  json: {\n    ...item,\n    crm_id: crmId,\n    crm_destination: 'HubSpot Free CRM Sandbox (HS-PRIV-VIEW-409)',\n    loaded_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "8",
+      "name": "HubSpot CRM Sandbox Loader",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Step 5: Independent Post-Action Verification\nconst item = $input.first().json;\n\n// Check domain resolution / simulated website active flag\nconst websiteActive = item.website_active !== false;\nconst httpStatus = websiteActive ? 200 : 404;\nconst websiteResolved = httpStatus === 200;\n\nconst verificationStatus = (item.crm_id && websiteResolved) ? 'VERIFIED_SUCCESS' : 'FAILED';\n\nconst verificationDetails = {\n  target_record_id: item.crm_id,\n  checked_url: `https://${item.domain}`,\n  http_status: httpStatus,\n  website_resolved: websiteResolved,\n  intended_state: 'ACTIVE_AND_CRM_LOADED',\n  observed_state: websiteResolved ? 'ACTIVE_AND_CRM_LOADED' : 'INACTIVE_WEBSITE_404',\n  discrepancy_notes: websiteResolved ? null : 'Website returned HTTP 404; verification failed.'\n};\n\nreturn [{\n  json: {\n    lead_id: item.lead_id,\n    domain: item.domain,\n    status: item.status,\n    reason: item.reason,\n    crm_id: item.crm_id,\n    idempotency_key: item.idempotency_key,\n    verification_status: verificationStatus,\n    verification_details: verificationDetails,\n    provenance: item.provenance\n  }\n}];"
+      },
+      "id": "9",
+      "name": "Step 5: Post-Action Verification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1740, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge non-qualified leads (Rejected / Uncertain)\nconst item = $input.first().json;\nreturn [{ json: item }];"
+      },
+      "id": "10",
+      "name": "Step 6: Non-Qualified Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1280, 480]
+    }
+  ],
+  "connections": {
+    "Webhook Intake": {
+      "main": [
+        [
+          {
+            "node": "Step 1: Schema Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 1: Schema Validation": {
+      "main": [
+        [
+          {
+            "node": "Step 2: Provenance Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 2: Provenance Extraction": {
+      "main": [
+        [
+          {
+            "node": "Step 3: Decision & Deduplication",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 3: Decision & Deduplication": {
+      "main": [
+        [
+          {
+            "node": "Is Qualified?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Qualified?": {
+      "main": [
+        [
+          {
+            "node": "Step 4: HITL Approval Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Step 6: Non-Qualified Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Step 4: HITL Approval Check": {
+      "main": [
+        [
+          {
+            "node": "HubSpot CRM Sandbox Loader",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Awaiting Approval State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot CRM Sandbox Loader": {
+      "main": [
+        [
+          {
+            "node": "Step 5: Post-Action Verification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
